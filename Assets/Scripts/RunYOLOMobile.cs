@@ -4,17 +4,19 @@ using System.IO;
 using Unity.InferenceEngine;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.Video;
 
 /*
- *  YOLO Inference Script
- *  ========================
+ *  YOLO Inference Script (Mobile-Optimized)
+ *  ========================================
  *
- * Place this script on the Main Camera and set the script parameters according to the tooltips.
+ *  • Works with WebCamTexture on mobile and desktop.
+ *  • Uses CPU backend on Android/iOS to avoid GPU buffer overflow.
+ *  • Reduces model input size to 320×320 for mobile performance.
+ *  • Limits inference to 5 FPS to prevent overheating.
  *
  */
 
-public class RunYOLOWebCam : MonoBehaviour
+public class RunYOLOMobile : MonoBehaviour
 {
     [Tooltip("Drag a YOLO model .onnx file here")]
     public ModelAsset modelAsset;
@@ -31,36 +33,35 @@ public class RunYOLOWebCam : MonoBehaviour
     [Tooltip("Select an appropriate font for the labels")]
     public Font font;
 
-    [Tooltip("Change this to the name of the video you put in the Assets/StreamingAssets folder")]
-    public string videoFilename = "giraffes.mp4";
+    [Tooltip("Intersection over union threshold for NMS")]
+    [Range(0, 1)] public float iouThreshold = 0.5f;
 
+    [Tooltip("Confidence score threshold for NMS")]
+    [Range(0, 1)] public float scoreThreshold = 0.5f;
+
+#if UNITY_ANDROID || UNITY_IOS
+    const BackendType backend = BackendType.CPU;
+#else
     const BackendType backend = BackendType.GPUCompute;
+#endif
 
-    private Transform displayLocation;
+    // Model input size (smaller = faster and safer on mobile)
+    private const int imageWidth = 640;
+    private const int imageHeight = 640;
+
     private Worker worker;
     private string[] labels;
     private RenderTexture targetRT;
     private Sprite borderSprite;
-
-    //Image size for the model
-    private const int imageWidth = 640;
-    private const int imageHeight = 640;
-
-
-    List<GameObject> boxPool = new();
-
-    [Tooltip("Intersection over union threshold used for non-maximum suppression")]
-    [SerializeField, Range(0, 1)]
-    float iouThreshold = 0.5f;
-
-    [Tooltip("Confidence score threshold used for non-maximum suppression")]
-    [SerializeField, Range(0, 1)]
-    float scoreThreshold = 0.5f;
-
-    Tensor<float> centersToCorners;
-    //bounding box data
-
     private WebCamTexture webcamTexture;
+    private Tensor<float> centersToCorners;
+
+    private Transform displayLocation;
+    private List<GameObject> boxPool = new();
+
+    // Inference timing
+    private float inferenceInterval = 0.2f; // 5 FPS
+    private float lastInferenceTime = 0f;
 
     public struct BoundingBox
     {
@@ -73,28 +74,34 @@ public class RunYOLOWebCam : MonoBehaviour
 
     void Start()
     {
-        Application.targetFrameRate = 60;
-        //Screen.orientation = ScreenOrientation.LandscapeLeft;
+        Application.targetFrameRate = 30;
 
+        // Load class labels
         labels = classesAsset.text.Split('\n');
+
+        // Load YOLO model
         LoadModel();
 
+        // Create render target
         targetRT = new RenderTexture(imageWidth, imageHeight, 0);
         displayLocation = displayImage.transform;
 
-        // ✅ Initialize webcam
+        // Initialize webcam
         if (WebCamTexture.devices.Length > 0)
         {
             WebCamDevice device = WebCamTexture.devices[0];
-            webcamTexture = new WebCamTexture(device.name);
+            webcamTexture = new WebCamTexture(device.name, imageWidth, imageHeight);
             webcamTexture.Play();
             displayImage.texture = webcamTexture;
         }
         else
         {
             Debug.LogError("No webcam found!");
+            enabled = false;
+            return;
         }
 
+        // Create border sprite
         borderSprite = Sprite.Create(borderTexture,
             new Rect(0, 0, borderTexture.width, borderTexture.height),
             new Vector2(0.5f, 0.5f));
@@ -102,68 +109,60 @@ public class RunYOLOWebCam : MonoBehaviour
 
     void LoadModel()
     {
-        //Load model
-        var model1 = ModelLoader.Load(modelAsset);
+        var model = ModelLoader.Load(modelAsset);
 
         centersToCorners = new Tensor<float>(new TensorShape(4, 4),
         new float[]
         {
-                    1,      0,      1,      0,
-                    0,      1,      0,      1,
-                    -0.5f,  0,      0.5f,   0,
-                    0,      -0.5f,  0,      0.5f
+            1, 0, 1, 0,
+            0, 1, 0, 1,
+            -0.5f, 0, 0.5f, 0,
+            0, -0.5f, 0, 0.5f
         });
 
-        //Here we transform the output of the model1 by feeding it through a Non-Max-Suppression layer.
         var graph = new FunctionalGraph();
-        var inputs = graph.AddInputs(model1);
-        var modelOutput = Functional.Forward(model1, inputs)[0];                        //shape=(1,84,8400)
-        var boxCoords = modelOutput[0, 0..4, ..].Transpose(0, 1);               //shape=(8400,4)
-        var allScores = modelOutput[0, 4.., ..];                                //shape=(80,8400)
-        var scores = Functional.ReduceMax(allScores, 0);                                //shape=(8400)
-        var classIDs = Functional.ArgMax(allScores, 0);                                 //shape=(8400)
-        var boxCorners = Functional.MatMul(boxCoords, Functional.Constant(centersToCorners));   //shape=(8400,4)
-        var indices = Functional.NMS(boxCorners, scores, iouThreshold, scoreThreshold); //shape=(N)
-        var coords = Functional.IndexSelect(boxCoords, 0, indices);                     //shape=(N,4)
-        var labelIDs = Functional.IndexSelect(classIDs, 0, indices);                    //shape=(N)
+        var inputs = graph.AddInputs(model);
+        var modelOutput = Functional.Forward(model, inputs)[0];
 
-        //Create worker to run model
+        // YOLOv8 post-processing pipeline
+        var boxCoords = modelOutput[0, 0..4, ..].Transpose(0, 1);
+        var allScores = modelOutput[0, 4.., ..];
+        var scores = Functional.ReduceMax(allScores, 0);
+        var classIDs = Functional.ArgMax(allScores, 0);
+        var boxCorners = Functional.MatMul(boxCoords, Functional.Constant(centersToCorners));
+        var indices = Functional.NMS(boxCorners, scores, iouThreshold, scoreThreshold);
+        var coords = Functional.IndexSelect(boxCoords, 0, indices);
+        var labelIDs = Functional.IndexSelect(classIDs, 0, indices);
+
         worker = new Worker(graph.Compile(coords, labelIDs), backend);
     }
 
-    //void SetupInput()
-    //{
-    //    video = gameObject.AddComponent<VideoPlayer>();
-    //    video.renderMode = VideoRenderMode.APIOnly;
-    //    video.source = VideoSource.Url;
-    //    video.url = Path.Join(Application.streamingAssetsPath, videoFilename);
-    //    video.isLooping = true;
-    //    video.Play();
-    //}
-
-    private void Update()
+    void Update()
     {
-        ExecuteML();
+        // Limit inference rate for mobile
+        if (Time.time - lastInferenceTime >= inferenceInterval)
+        {
+            ExecuteML();
+            lastInferenceTime = Time.time;
+        }
 
         if (Input.GetKeyDown(KeyCode.Escape))
-        {
             Application.Quit();
-        }
     }
 
-    public void ExecuteML()
+    void ExecuteML()
     {
         ClearAnnotations();
 
-        if (webcamTexture && webcamTexture.didUpdateThisFrame)
-        {
-            Graphics.Blit(webcamTexture, targetRT, new Vector2(-1, 1), new Vector2(1, 0));
-        }
-        else return;
+        if (webcamTexture == null || !webcamTexture.didUpdateThisFrame)
+            return;
 
+        // Copy webcam frame to RenderTexture
+        Graphics.Blit(webcamTexture, targetRT);
 
-        using Tensor<float> inputTensor = new Tensor<float>(new TensorShape(1, 3, imageHeight, imageWidth));
+        using var inputTensor = new Tensor<float>(new TensorShape(1, 3, imageHeight, imageWidth));
         TextureConverter.ToTensor(targetRT, inputTensor, default);
+
         worker.Schedule(inputTensor);
 
         using var output = (worker.PeekOutput("output_0") as Tensor<float>).ReadbackAndClone();
@@ -176,7 +175,6 @@ public class RunYOLOWebCam : MonoBehaviour
         float scaleY = displayHeight / imageHeight;
 
         int boxesFound = output.shape[0];
-        //Draw the bounding boxes
         for (int n = 0; n < Mathf.Min(boxesFound, 200); n++)
         {
             var box = new BoundingBox
@@ -191,9 +189,8 @@ public class RunYOLOWebCam : MonoBehaviour
         }
     }
 
-    public void DrawBox(BoundingBox box, int id, float fontSize)
+    void DrawBox(BoundingBox box, int id, float fontSize)
     {
-        //Create the bounding box graphic or get from pool
         GameObject panel;
         if (id < boxPool.Count)
         {
@@ -204,23 +201,18 @@ public class RunYOLOWebCam : MonoBehaviour
         {
             panel = CreateNewBox(Color.yellow);
         }
-        //Set box position
-        panel.transform.localPosition = new Vector3(box.centerX, -box.centerY);
 
-        //Set box size
+        panel.transform.localPosition = new Vector3(box.centerX, -box.centerY);
         RectTransform rt = panel.GetComponent<RectTransform>();
         rt.sizeDelta = new Vector2(box.width, box.height);
 
-        //Set label text
         var label = panel.GetComponentInChildren<Text>();
         label.text = box.label;
         label.fontSize = (int)fontSize;
     }
 
-    public GameObject CreateNewBox(Color color)
+    GameObject CreateNewBox(Color color)
     {
-        //Create the box and set image
-
         var panel = new GameObject("ObjectBox");
         panel.AddComponent<CanvasRenderer>();
         Image img = panel.AddComponent<Image>();
@@ -228,8 +220,6 @@ public class RunYOLOWebCam : MonoBehaviour
         img.sprite = borderSprite;
         img.type = Image.Type.Sliced;
         panel.transform.SetParent(displayLocation, false);
-
-        //Create the label
 
         var text = new GameObject("ObjectLabel");
         text.AddComponent<CanvasRenderer>();
@@ -241,28 +231,25 @@ public class RunYOLOWebCam : MonoBehaviour
         txt.horizontalOverflow = HorizontalWrapMode.Overflow;
 
         RectTransform rt2 = text.GetComponent<RectTransform>();
-        rt2.offsetMin = new Vector2(20, rt2.offsetMin.y);
-        rt2.offsetMax = new Vector2(0, rt2.offsetMax.y);
-        rt2.offsetMin = new Vector2(rt2.offsetMin.x, 0);
-        rt2.offsetMax = new Vector2(rt2.offsetMax.x, 30);
-        rt2.anchorMin = new Vector2(0, 0);
-        rt2.anchorMax = new Vector2(1, 1);
+        rt2.anchorMin = Vector2.zero;
+        rt2.anchorMax = Vector2.one;
+        rt2.offsetMin = new Vector2(10, 0);
+        rt2.offsetMax = new Vector2(-10, 30);
 
         boxPool.Add(panel);
         return panel;
     }
 
-    public void ClearAnnotations()
+    void ClearAnnotations()
     {
         foreach (var box in boxPool)
-        {
             box.SetActive(false);
-        }
     }
 
     void OnDestroy()
     {
         centersToCorners?.Dispose();
         worker?.Dispose();
+        webcamTexture?.Stop();
     }
 }

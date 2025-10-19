@@ -295,7 +295,6 @@ GameObject:
   - component: {fileID: 1032857059}
   - component: {fileID: 1032857058}
   - component: {fileID: 1032857057}
-  - component: {fileID: 1032857056}
   - component: {fileID: 1032857060}
   m_Layer: 0
   m_Name: Main Camera
@@ -304,26 +303,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1032857056
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1032857055}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1ebf6771d7c4c0d45b126e765f21d6ba, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::RunYOLO
-  modelAsset: {fileID: 5022602860645237092, guid: 78a0ec3dcc22ef140b0061df66be0203, type: 3}
-  classesAsset: {fileID: 4900000, guid: 3b970857db2cf9b42ac5cc1a9ecc3714, type: 3}
-  displayImage: {fileID: 1884806137}
-  borderTexture: {fileID: 2800000, guid: 5e84c3a007665dd498ce9ee970e5d03a, type: 3}
-  font: {fileID: 12800000, guid: e3265ab4bf004d28a9537516768c1c75, type: 3}
-  videoFilename: giraffes.mp4
-  iouThreshold: 0.5
-  scoreThreshold: 0.5
 --- !u!81 &1032857057
 AudioListener:
   m_ObjectHideFlags: 0
@@ -341,8 +320,8 @@ Camera:
   m_GameObject: {fileID: 1032857055}
   m_Enabled: 1
   serializedVersion: 2
-  m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_ClearFlags: 2
+  m_BackGroundColor: {r: 0.19215688, g: 0.4745098, b: 0.3178067, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -407,15 +386,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 1032857055}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 09fc2c0b6c2dc6c499dad82dd24673b2, type: 3}
+  m_Script: {fileID: 11500000, guid: dd864e9911c423d44b1dfa6d361dbb81, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::RunYOLOWebCam
-  modelAsset: {fileID: 5022602860645237092, guid: 820575910c9cc4746b6749f92af80141, type: 3}
+  m_EditorClassIdentifier: Assembly-CSharp::RunYOLOMobile
+  modelAsset: {fileID: 5022602860645237092, guid: 35ecc5785d10b2e478e23ed8087b2466, type: 3}
   classesAsset: {fileID: 4900000, guid: 3b970857db2cf9b42ac5cc1a9ecc3714, type: 3}
   displayImage: {fileID: 1884806137}
   borderTexture: {fileID: 2800000, guid: 5e84c3a007665dd498ce9ee970e5d03a, type: 3}
   font: {fileID: 12800000, guid: e3265ab4bf004d28a9537516768c1c75, type: 3}
-  videoFilename: giraffes.mp4
   iouThreshold: 0.5
   scoreThreshold: 0.5
 --- !u!1 &1884806135
@@ -453,7 +431,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 640, y: 640}
+  m_SizeDelta: {x: 1020, y: 640}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1884806137
 MonoBehaviour:

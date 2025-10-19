@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using Unity.InferenceEngine;
+using UnityEngine;
 using UnityEngine.EventSystems;
 
 public class DrawingBoard : MonoBehaviour
@@ -18,7 +19,7 @@ public class DrawingBoard : MonoBehaviour
     [Header("Double Tap Settings")]
     public float doubleTapTime = 0.3f; // Max delay between taps
     private float lastTapTime = 0f;
-
+    public bool IsDrawing { get; private set; }
 
     void Start()
     {
@@ -53,7 +54,13 @@ public class DrawingBoard : MonoBehaviour
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, drawingLayer))
             {
                 DrawAt(hit.textureCoord);
+                IsDrawing = true;
+
             }
+        }
+        else
+        {
+            IsDrawing = false;
         }
 
         // 🧽 Double-click to clear
@@ -96,6 +103,7 @@ public class DrawingBoard : MonoBehaviour
                     if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, drawingLayer))
                     {
                         DrawAt(hit.textureCoord);
+                        IsDrawing = true;
                     }
                 }
 
@@ -114,6 +122,11 @@ public class DrawingBoard : MonoBehaviour
                     }
                 }
             }
+       
+
+        }
+        else {
+            IsDrawing = false;
         }
     }
 
@@ -153,6 +166,7 @@ public class DrawingBoard : MonoBehaviour
         }
 
         drawTexture.Apply();
+        
     }
 
 

@@ -599,7 +599,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 895851632}
-  - component: {fileID: 895851633}
+  - component: {fileID: 895851634}
   m_Layer: 0
   m_Name: ModelRunner
   m_TagString: Untagged
@@ -622,7 +622,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &895851633
+--- !u!114 &895851634
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -631,9 +631,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 895851630}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8884a29f97bff584aa8afd0c6aaf8d6f, type: 3}
+  m_Script: {fileID: 11500000, guid: 7aa8a4e41faf942458930a71ce300efc, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ModelExecutionMNISTCNN
+  m_EditorClassIdentifier: Assembly-CSharp::ModelExecutionMNISTUnified
   modelAsset: {fileID: 5022602860645237092, guid: b865e4d5e80d1e844b0a1340c1d06321, type: 3}
   drawingBoard: {fileID: 943318662}
   predictedDigitText: {fileID: 683350452}
