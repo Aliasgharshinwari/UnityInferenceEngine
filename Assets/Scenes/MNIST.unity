@@ -673,7 +673,7 @@ MonoBehaviour:
   width: 28
   height: 28
   modelInputSize: 28
-  brushSize: 12
+  brushSize: 2
   drawingLayer:
     serializedVersion: 2
     m_Bits: 64

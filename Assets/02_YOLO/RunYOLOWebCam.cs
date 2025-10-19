@@ -74,7 +74,7 @@ public class RunYOLOWebCam : MonoBehaviour
     void Start()
     {
         Application.targetFrameRate = 60;
-        Screen.orientation = ScreenOrientation.LandscapeLeft;
+        //Screen.orientation = ScreenOrientation.LandscapeLeft;
 
         labels = classesAsset.text.Split('\n');
         LoadModel();

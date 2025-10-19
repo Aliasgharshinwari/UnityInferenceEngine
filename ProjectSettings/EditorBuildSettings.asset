@@ -6,8 +6,14 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/MNIST/MNIST.unity
+    path: Assets/Scenes/Menu.unity
+    guid: 31fb3de05685a6448878b533283b33bf
+  - enabled: 1
+    path: Assets/Scenes/MNIST.unity
     guid: f651d898e96a7354581680c82d705bf5
+  - enabled: 1
+    path: Assets/Scenes/YOLO.unity
+    guid: 07fff6ece1af90b4da745c6bf1411b7d
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0
